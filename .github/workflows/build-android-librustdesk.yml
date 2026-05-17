@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - rustdesk/**
+      - **
       - .github/workflows/build-android-librustdesk.yml
 
 jobs:
@@ -39,11 +39,11 @@ jobs:
       - name: Build librustdesk.so (arm64-v8a, x86_64)
         working-directory: rustdesk
         run: |
-          mkdir -p ../artifacts/jniLibs
+          mkdir -p  artifacts/jniLibs
           cargo ndk \
             -t arm64-v8a \
             -t x86_64 \
-            -o ../artifacts/jniLibs \
+            -o  artifacts/jniLibs \
             build \
             --release \
             --lib \
