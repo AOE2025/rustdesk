@@ -16,10 +16,13 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-          
-      - name: Update submodules
-        run: git submodule update --init --recursive
-        
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git curl unzip tar pkg-config cmake ninja-build make perl nasm yasm
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -42,13 +45,20 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      - name: Setup vcpkg (for opus/aom/libvpx/libyuv)
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh"
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
+          "$HOME/vcpkg/vcpkg" install libvpx libyuv opus aom
+
       - name: Build librustdesk.so (arm64-v8a, x86_64)
         run: |
-          mkdir -p  artifacts/jniLibs
+          mkdir -p artifacts/jniLibs
           cargo ndk \
             -t arm64-v8a \
             -t x86_64 \
-            -o  artifacts/jniLibs \
+            -o artifacts/jniLibs \
             build \
             --release \
             --lib \
