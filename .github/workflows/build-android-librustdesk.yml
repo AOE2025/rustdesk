@@ -21,7 +21,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            git curl unzip tar pkg-config cmake ninja-build make perl nasm yasm
+            git curl unzip tar pkg-config cmake ninja-build make perl nasm yasm \
+            clang libclang-dev python3
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -36,6 +37,11 @@ jobs:
 
       - name: Setup Android SDK + NDK
         uses: android-actions/setup-android@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
       - name: Install NDK
         run: |
