@@ -50,7 +50,9 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
           "$HOME/vcpkg/bootstrap-vcpkg.sh"
           echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
-          "$HOME/vcpkg/vcpkg" install libvpx libyuv opus aom
+          echo "VCPKG_DISABLE_METRICS=1" >> $GITHUB_ENV
+          cd "$HOME/vcpkg"
+          ./vcpkg install --classic libvpx libyuv opus aom
 
       - name: Build librustdesk.so (arm64-v8a, x86_64)
         run: |
