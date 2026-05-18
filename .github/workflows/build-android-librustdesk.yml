@@ -45,6 +45,16 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
+      - name: Generate flutter_rust_bridge files
+        run: |
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --features uuid --locked
+          flutter_rust_bridge_codegen \
+            --rust-input src/flutter_ffi.rs \
+            --dart-output flutter/lib/generated_bridge.dart \
+            --c-output flutter/macos/Runner/bridge_generated.h
+          test -f src/bridge_generated.rs
+          test -f src/bridge_generated.io.rs
+
       - name: Setup vcpkg (for opus/aom/libvpx/libyuv)
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
