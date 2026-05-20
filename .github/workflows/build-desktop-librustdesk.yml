@@ -34,6 +34,15 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Detect RustDesk directory
+        shell: bash
+        run: |
+          if [ -d rustdesk ] && [ -f rustdesk/Cargo.toml ]; then
+            echo "RUSTDESK_DIR=rustdesk" >> "$GITHUB_ENV"
+          else
+            echo "RUSTDESK_DIR=." >> "$GITHUB_ENV"
+          fi
+
       - name: Install prerequisites
         shell: bash
         run: |
@@ -75,7 +84,7 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: x64-linux
           VCPKG_DEFAULT_HOST_TRIPLET: x64-linux
         run: |
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           "$VCPKG_ROOT/vcpkg" install --x-install-root="$VCPKG_ROOT/installed"
 
       - name: Setup Rust
@@ -88,7 +97,7 @@ jobs:
         shell: bash
         run: |
           cargo install flutter_rust_bridge_codegen --version "${FRB_VERSION}" --features uuid --locked
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           flutter_rust_bridge_codegen \
             --rust-input src/flutter_ffi.rs \
             --dart-output flutter/lib/generated_bridge.dart \
@@ -102,10 +111,10 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: x64-linux
           VCPKG_DEFAULT_HOST_TRIPLET: x64-linux
         run: |
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           cargo build --features "${FEATURES}" --lib --release
-          mkdir -p ../artifacts/linux-x86_64
-          cp -f ./target/release/librustdesk.so ../artifacts/linux-x86_64/librustdesk.so
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/linux-x86_64"
+          cp -f ./target/release/librustdesk.so "$GITHUB_WORKSPACE/artifacts/linux-x86_64/librustdesk.so"
 
       - name: Upload artifacts (linux)
         uses: actions/upload-artifact@v4
@@ -121,6 +130,15 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Detect RustDesk directory
+        shell: bash
+        run: |
+          if [ -d rustdesk ] && [ -f rustdesk/Cargo.toml ]; then
+            echo "RUSTDESK_DIR=rustdesk" >> "$GITHUB_ENV"
+          else
+            echo "RUSTDESK_DIR=." >> "$GITHUB_ENV"
+          fi
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@v1
@@ -140,7 +158,7 @@ jobs:
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
         run: |
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           "$VCPKG_ROOT/vcpkg" install --triplet x64-windows-static --x-install-root="$VCPKG_ROOT/installed"
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-x64-windows-static-rel-out.log" || true
 
@@ -148,7 +166,7 @@ jobs:
         shell: bash
         run: |
           cargo install flutter_rust_bridge_codegen --version "${FRB_VERSION}" --features uuid --locked
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           flutter_rust_bridge_codegen \
             --rust-input src/flutter_ffi.rs \
             --dart-output flutter/lib/generated_bridge.dart \
@@ -161,10 +179,10 @@ jobs:
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
         run: |
-          cd rustdesk
+          cd "$RUSTDESK_DIR"
           cargo build --features "${FEATURES}" --lib --release
-          mkdir -p ../artifacts/windows-x86_64
-          cp -f ./target/release/librustdesk.dll ../artifacts/windows-x86_64/librustdesk.dll
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/windows-x86_64"
+          cp -f ./target/release/librustdesk.dll "$GITHUB_WORKSPACE/artifacts/windows-x86_64/librustdesk.dll"
 
       - name: Upload artifacts (windows)
         uses: actions/upload-artifact@v4
