@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "**"
       - .github/workflows/build-desktop-librustdesk.yml
 
 env:
@@ -128,7 +127,7 @@ jobs:
           cd "$RUSTDESK_DIR"
           cargo build --features "${FEATURES}" --lib --release
           mkdir -p "$GITHUB_WORKSPACE/artifacts/linux-x86_64"
-          cp -f ./target/release/librustdesk.so "$GITHUB_WORKSPACE/artifacts/linux-x86_64/librustdesk.so"
+          cp -f ./target/release/liblibrustdesk.so "$GITHUB_WORKSPACE/artifacts/linux-x86_64/librustdesk.so"
 
       - name: Upload artifacts (linux)
         uses: actions/upload-artifact@v4
