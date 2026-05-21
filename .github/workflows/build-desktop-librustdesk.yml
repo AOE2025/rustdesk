@@ -8,6 +8,7 @@ on:
 
 env:
   RUST_TOOLCHAIN: "1.75"
+  MAC_RUST_TOOLCHAIN: "1.81"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   FRB_VERSION: "1.80.1"
   FLUTTER_VERSION: "3.24.5"
@@ -215,3 +216,195 @@ jobs:
         with:
           name: librustdesk-windows-x86_64
           path: artifacts/windows-x86_64
+
+  build-macos:
+    name: build-macos-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            arch: x86_64
+            target: x86_64-apple-darwin
+            vcpkg_triplet: x64-osx
+          - os: macos-14
+            arch: aarch64
+            target: aarch64-apple-darwin
+            vcpkg_triplet: arm64-osx
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Detect RustDesk directory
+        shell: bash
+        run: |
+          if [ -d rustdesk ] && [ -f rustdesk/Cargo.toml ]; then
+            echo "RUSTDESK_DIR=rustdesk" >> "$GITHUB_ENV"
+          else
+            echo "RUSTDESK_DIR=." >> "$GITHUB_ENV"
+          fi
+
+      - name: Install build runtime
+        shell: bash
+        run: |
+          brew install llvm
+          if command -v pkg-config &>/dev/null; then
+            echo "pkg-config is already installed"
+          else
+            brew install pkg-config
+          fi
+
+      - name: Install NASM
+        shell: bash
+        run: |
+          wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/macosx/nasm-2.16.03-macosx.zip
+          unzip nasm-2.16.03-macosx.zip
+          sudo cp nasm-2.16.03/nasm /usr/local/bin/nasm
+          nasm --version
+
+      - name: Setup vcpkg (binary cache)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies (manifest)
+        shell: bash
+        env:
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
+          VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_triplet }}
+        run: |
+          cd "$RUSTDESK_DIR"
+          "$VCPKG_ROOT/vcpkg" install --triplet "${{ matrix.vcpkg_triplet }}" --x-install-root="$VCPKG_ROOT/installed"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.MAC_RUST_TOOLCHAIN }}
+          targets: ${{ matrix.target }}
+          components: rustfmt
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.12.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Flutter pub get (rustdesk/flutter)
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR/flutter"
+          flutter pub get
+
+      - name: Generate flutter_rust_bridge files
+        shell: bash
+        run: |
+          cargo install flutter_rust_bridge_codegen --version "${FRB_VERSION}" --features uuid --locked
+          cd "$RUSTDESK_DIR"
+          flutter_rust_bridge_codegen \
+            --rust-input src/flutter_ffi.rs \
+            --dart-output flutter/lib/generated_bridge.dart \
+            --c-output flutter/macos/Runner/bridge_generated.h
+          test -f src/bridge_generated.rs
+          test -f src/bridge_generated.io.rs
+
+      - name: Build librustdesk.dylib
+        shell: bash
+        env:
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
+          VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_triplet }}
+        run: |
+          cd "$RUSTDESK_DIR"
+          cargo build --features "${FEATURES}" --lib --release --target "${{ matrix.target }}"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/macos-${{ matrix.arch }}"
+          cp -f "./target/${{ matrix.target }}/release/liblibrustdesk.dylib" "$GITHUB_WORKSPACE/artifacts/macos-${{ matrix.arch }}/librustdesk.dylib"
+
+      - name: Upload artifacts (macos)
+        uses: actions/upload-artifact@v4
+        with:
+          name: librustdesk-macos-${{ matrix.arch }}
+          path: artifacts/macos-${{ matrix.arch }}
+
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Detect RustDesk directory
+        shell: bash
+        run: |
+          if [ -d rustdesk ] && [ -f rustdesk/Cargo.toml ]; then
+            echo "RUSTDESK_DIR=rustdesk" >> "$GITHUB_ENV"
+          else
+            echo "RUSTDESK_DIR=." >> "$GITHUB_ENV"
+          fi
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          brew install nasm yasm
+
+      - name: Setup vcpkg (binary cache)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies (manifest)
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR"
+          "$VCPKG_ROOT/vcpkg" install --triplet arm64-ios --x-install-root="$VCPKG_ROOT/installed"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-apple-ios
+          components: rustfmt
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.12.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Flutter pub get (rustdesk/flutter)
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR/flutter"
+          flutter pub get
+
+      - name: Generate flutter_rust_bridge files
+        shell: bash
+        run: |
+          cargo install flutter_rust_bridge_codegen --version "${FRB_VERSION}" --features uuid --locked
+          cd "$RUSTDESK_DIR"
+          flutter_rust_bridge_codegen \
+            --rust-input src/flutter_ffi.rs \
+            --dart-output flutter/lib/generated_bridge.dart \
+            --c-output flutter/macos/Runner/bridge_generated.h
+          test -f src/bridge_generated.rs
+          test -f src/bridge_generated.io.rs
+
+      - name: Build liblibrustdesk.a
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR"
+          cargo build --features "${FEATURES}" --release --target aarch64-apple-ios --lib
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/ios-arm64"
+          cp -f "./target/aarch64-apple-ios/release/liblibrustdesk.a" "$GITHUB_WORKSPACE/artifacts/ios-arm64/liblibrustdesk.a"
+
+      - name: Upload artifacts (ios)
+        uses: actions/upload-artifact@v4
+        with:
+          name: librustdesk-ios-arm64
+          path: artifacts/ios-arm64
