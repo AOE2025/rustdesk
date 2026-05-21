@@ -11,6 +11,7 @@ env:
   RUST_TOOLCHAIN: "1.75"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   FRB_VERSION: "1.80.1"
+  FLUTTER_VERSION: "3.24.5"
   FEATURES: "flutter,hwcodec"
 
 jobs:
@@ -94,6 +95,12 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           components: rustfmt
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.12.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
       - name: Generate flutter_rust_bridge files
         shell: bash
         run: |
@@ -146,6 +153,13 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: x86_64-pc-windows-msvc
+          components: rustfmt
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.12.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Setup vcpkg (binary cache)
         uses: lukka/run-vcpkg@v11
