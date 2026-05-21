@@ -101,6 +101,12 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
+      - name: Flutter pub get (rustdesk/flutter)
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR/flutter"
+          flutter pub get
+
       - name: Generate flutter_rust_bridge files
         shell: bash
         run: |
@@ -160,6 +166,12 @@ jobs:
         with:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Flutter pub get (rustdesk/flutter)
+        shell: bash
+        run: |
+          cd "$RUSTDESK_DIR/flutter"
+          flutter pub get
 
       - name: Setup vcpkg (binary cache)
         uses: lukka/run-vcpkg@v11
